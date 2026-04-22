@@ -248,18 +248,31 @@ function rpyToQuaternion(roll, pitch, yaw) {
 }
 
 // ── NPZ/NPY Parser ──
+function readU32(b,o){return(b[o]|(b[o+1]<<8)|(b[o+2]<<16)|(b[o+3]<<24))>>>0;}
+function readU64(b,o){return readU32(b,o)+readU32(b,o+4)*0x100000000;}
 function parseNPZ(ab) {
   var b=new Uint8Array(ab),r={},o=0;
   while(o+30<b.length){
     if(b[o]!==80||b[o+1]!==75||b[o+2]!==3||b[o+3]!==4)break;
     var cm=b[o+8]|(b[o+9]<<8);
-    var cs=b[o+18]|(b[o+19]<<8)|(b[o+20]<<16)|(b[o+21]<<24);
+    var cs=readU32(b,o+18),us=readU32(b,o+22);
     var fl=b[o+26]|(b[o+27]<<8),el=b[o+28]|(b[o+29]<<8);
     var fn='';for(var c=0;c<fl;c++)fn+=String.fromCharCode(b[o+30+c]);
+    if(cs===0xFFFFFFFF||us===0xFFFFFFFF){
+      var eo=o+30+fl,ee=eo+el;
+      while(eo+4<=ee){
+        var eid=b[eo]|(b[eo+1]<<8),esz=b[eo+2]|(b[eo+3]<<8),p=eo+4;
+        if(eid===1){
+          if(us===0xFFFFFFFF){us=readU64(b,p);p+=8;}
+          if(cs===0xFFFFFFFF)cs=readU64(b,p);
+          break;
+        }
+        eo+=4+esz;
+      }
+    }
     var ds=o+30+fl+el;
     if(fn.indexOf('.npy')===fn.length-4&&cm===0&&cs>0){
-      var nc=new Uint8Array(cs);for(var j=0;j<cs;j++)nc[j]=b[ds+j];
-      try{r[fn.slice(0,-4)]=parseNPY(nc);}catch(e){}
+      try{r[fn.slice(0,-4)]=parseNPY(b.slice(ds,ds+cs));}catch(e){}
     }
     o=ds+cs;
   }
@@ -268,20 +281,19 @@ function parseNPZ(ab) {
 function parseNPY(b) {
   if(b[0]!==147||b[1]!==78)throw 0;
   var mj=b[6],hl,hs;
-  if(mj>=2){hl=b[8]|(b[9]<<8)|(b[10]<<16)|(b[11]<<24);hs=12;}
+  if(mj>=2){hl=(b[8]|(b[9]<<8)|(b[10]<<16)|(b[11]<<24))>>>0;hs=12;}
   else{hl=b[8]|(b[9]<<8);hs=10;}
   var h='';for(var i=hs;i<hs+hl;i++)h+=String.fromCharCode(b[i]);
   var dm=h.match(/'descr'\s*:\s*'([^']+)'/),sm=h.match(/'shape'\s*:\s*\(([^)]*)\)/);
   if(!dm||!sm)throw 0;
   var d=dm[1],sh=[];
   sm[1].split(',').forEach(function(s){s=s.trim();if(s)sh.push(parseInt(s));});
-  var doff=hs+hl,dl=b.length-doff,dc=new Uint8Array(dl);
-  for(var j=0;j<dl;j++)dc[j]=b[doff+j];
-  var ab=dc.buffer;
+  var doff=hs+hl;
+  var ab=b.buffer.slice(b.byteOffset+doff,b.byteOffset+b.length);
   if(d.indexOf('f4')>=0)return{shape:sh,data:new Float32Array(ab)};
   if(d.indexOf('i4')>=0)return{shape:sh,data:new Int32Array(ab)};
   if(d.indexOf('f8')>=0)return{shape:sh,data:new Float64Array(ab)};
-  return{shape:sh,data:dc};
+  return{shape:sh,data:new Uint8Array(ab)};
 }
 function extractMotion(a) {
   var fps=a.fps?a.fps.data[0]:50;
