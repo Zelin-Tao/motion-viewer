@@ -2,94 +2,91 @@
 
 A browser-based 3D motion visualizer for any robot. Load a URDF with STL meshes and NPZ motion data — everything runs client-side, no server required.
 
-**[Live Demo](https://<your-username>.github.io/motion-viewer/)** (replace with your actual GitHub Pages URL)
+**[Live Demo](https://zelin-tao.github.io/motion-viewer/)**
 
 ## Features
 
-- **Any robot**: Load any URDF + STL mesh bundle via drag-and-drop
-- **NPZ motion playback**: Visualize body pose trajectories at arbitrary FPS
-- **Zero install**: Pure HTML/JS, runs entirely in the browser (Three.js)
-- **Playback controls**: Play/pause, scrub timeline, speed (0.25x–2x), frame stepping
-- **Camera follow**: Auto-track the robot root body
-- **Trajectory trail**: Toggle a ground-plane trace of the root path
-- **Multi-motion**: Load multiple `.npz` files and switch between them with `[` / `]`
-- **Keyboard shortcuts**: `Space` play/pause, `←→` step frames, `[]` switch motions
+- **Any robot** — drag-and-drop any URDF + STL mesh bundle
+- **NPZ motion playback** — visualize body pose trajectories at arbitrary FPS
+- **Zero install** — single HTML file, runs entirely in the browser via Three.js
+- **Playback controls** — play/pause, timeline scrubbing, speed (0.25x–2x), frame stepping
+- **Camera follow** — auto-track the robot root body
+- **Trajectory trail** — toggle a ground-plane trace of the root path
+- **Multi-motion** — load multiple `.npz` files and switch between them
 
-## Usage
+## Quick Start
 
-1. Open `index.html` in a browser (or visit the hosted site)
-2. **Drag a robot folder** containing a `.urdf` file and `.stl` meshes into the window
-3. **Drag one or more `.npz` motion files** into the window
-4. Use the playback bar and sidebar to control visualization
+1. Open the [live demo](https://zelin-tao.github.io/motion-viewer/) or `index.html` locally
+2. Drag a **robot folder** (containing `.urdf` + `.stl` meshes) into the window
+3. Drag one or more **`.npz` motion files** into the window
+4. Use the playback bar to control visualization
 
-You can also use the **+ Add .npz** and **+ Add folder** buttons in the sidebar.
+### Keyboard Shortcuts
 
-## Demo Assets
+| Key | Action |
+|-----|--------|
+| `Space` | Play / Pause |
+| `←` `→` | Step frame backward / forward |
+| `[` `]` | Previous / next motion |
 
-The `demo/` folder contains a ready-to-use example:
+### Demo Assets
+
+A ready-to-use example is included in `demo/`:
 
 | Asset | Description |
-|---|---|
+|-------|-------------|
 | `demo/unitree_g1/` | Unitree G1 humanoid — URDF + 35 STL meshes |
-| `demo/dance1_subject2.npz` | Dance motion clip (131s, 6574 frames @ 50fps, 30 bodies) |
+| `demo/dance1_subject2.npz` | Dance motion (131s, 6574 frames @ 50fps, 30 bodies) |
 
-**To try it:**
-1. Open the viewer
-2. Drag the `demo/unitree_g1/` folder into the window
-3. Drag `demo/dance1_subject2.npz` into the window
+Clone the repo, then drag `demo/unitree_g1/` and `demo/dance1_subject2.npz` into the viewer.
 
 ## NPZ Data Format
 
-Motion files use the NumPy `.npz` format, following the convention from [whole_body_tracking](https://github.com/HybridRobotics/whole_body_tracking). The viewer requires `fps`, `body_pos_w`, and `body_quat_w`; other keys are optional.
+Motion files use the NumPy `.npz` format, following the convention from [whole_body_tracking](https://github.com/HybridRobotics/whole_body_tracking).
 
-```
-{
-    "fps":            ndarray, shape (1,)              — playback frame rate (e.g. [50])
-    "body_pos_w":     ndarray, shape (N, num_bodies, 3) — world-frame body positions
-    "body_quat_w":    ndarray, shape (N, num_bodies, 4) — world-frame body orientations (wxyz)
-    "joint_pos":      ndarray, shape (N, num_joints)    — joint positions        [optional]
-    "joint_vel":      ndarray, shape (N, num_joints)    — joint velocities       [optional]
-    "body_lin_vel_w": ndarray, shape (N, num_bodies, 3) — body linear velocities [optional]
-    "body_ang_vel_w": ndarray, shape (N, num_bodies, 3) — body angular velocities[optional]
-}
-```
+**Required keys:**
 
-Where `N` is the number of frames and `num_bodies` matches the number of bodies in the URDF (BFS order, collapsing fixed joints).
+| Key | Shape | Description |
+|-----|-------|-------------|
+| `fps` | `(1,)` | Playback frame rate, e.g. `[50]` |
+| `body_pos_w` | `(N, num_bodies, 3)` | World-frame body positions |
+| `body_quat_w` | `(N, num_bodies, 4)` | World-frame body orientations (wxyz) |
+
+**Optional keys:**
+
+| Key | Shape | Description |
+|-----|-------|-------------|
+| `joint_pos` | `(N, num_joints)` | Joint positions |
+| `joint_vel` | `(N, num_joints)` | Joint velocities |
+| `body_lin_vel_w` | `(N, num_bodies, 3)` | Body linear velocities |
+| `body_ang_vel_w` | `(N, num_bodies, 3)` | Body angular velocities |
+
+`N` = number of frames. `num_bodies` must match the URDF body count (BFS traversal order, fixed joints collapsed into parent).
 
 ## URDF + Mesh Requirements
 
-- Standard URDF format with `<visual>` meshes pointing to `.stl` files
-- The viewer resolves meshes by **filename only** (e.g. `package://foo/bar/pelvis.STL` → looks for `pelvis.stl`)
-- All `.stl` files must be binary STL format
-- Drag the entire folder (URDF + meshes can be in subdirectories)
+- Standard URDF with `<visual>` meshes pointing to `.stl` files
+- Meshes are resolved by **filename only** (e.g. `package://foo/bar/pelvis.STL` matches `pelvis.stl`)
+- Binary STL format only
+- URDF and meshes can be in subdirectories — just drag the top-level folder
 
 ## Coordinate Convention
 
-- The NPZ data uses a **Z-up** coordinate system (Isaac Sim / IsaacLab convention)
-- The viewer automatically converts to Y-up for Three.js rendering
-- Quaternions are in **wxyz** order (scalar first)
+- NPZ data uses **Z-up** (Isaac Sim / IsaacLab convention)
+- The viewer converts to Y-up for rendering automatically
+- Quaternions are **wxyz** (scalar first)
 
-## Self-Hosting
+## Deployment
 
-This is a single HTML file with no build step. To deploy:
+Single HTML file, no build step needed.
 
-### GitHub Pages
+**GitHub Pages:** Fork this repo → Settings → Pages → deploy from `main` branch.
 
-1. Fork or clone this repo
-2. Go to **Settings → Pages → Source** → select `main` branch
-3. Your site will be live at `https://<username>.github.io/motion-viewer/`
-
-### Any Static Server
+**Local:** Open `index.html` directly in a browser, or serve with any static server:
 
 ```bash
-# Python
 python -m http.server 8000
-
-# Node
-npx serve .
 ```
-
-Or simply open `index.html` directly in a browser — no server needed.
 
 ## License
 
