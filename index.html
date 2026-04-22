@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Motion Viewer</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=DM+Sans:wght@400;500;600&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box}
+  :root{--bg:#08080f;--panel:#0c0c18;--hover:#161630;--active:#1a1a3a;--border:#1c1c35;--t1:#c0c0da;--t2:#6a6a8a;--t3:#3a3a55;--cyan:#2d9aaa;--mag:#aa2d6a;--grn:#2daa6a}
+  body{background:var(--bg);color:var(--t1);font-family:'DM Sans',sans-serif;overflow:hidden;height:100vh}
+  #app{display:flex;flex-direction:column;height:100vh}
+  .hdr{display:flex;align-items:center;justify-content:space-between;padding:8px 16px;border-bottom:1px solid var(--border);background:var(--panel);flex-shrink:0;z-index:10}
+  .hdr-l{display:flex;align-items:center;gap:10px}
+  .logo{width:30px;height:30px;border-radius:6px;background:linear-gradient(135deg,var(--cyan),var(--mag));display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:700;color:#fff}
+  .hdr-t{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;letter-spacing:2px}
+  .hdr-i{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--t3)}
+  .main{flex:1;display:flex;overflow:hidden}
+  .sb{width:230px;border-right:1px solid var(--border);background:var(--panel);display:flex;flex-direction:column;flex-shrink:0}
+  .sb-l{padding:10px 14px 6px;font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:2px}
+  .sb-list{flex:1;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+  .sb-i{padding:8px 14px;cursor:pointer;border-left:2px solid transparent;transition:all .12s}
+  .sb-i:hover{background:var(--hover)}.sb-i.act{background:var(--active);border-left-color:var(--cyan)}
+  .sb-n{font-size:12px;color:var(--t2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .sb-i.act .sb-n{color:#aabbee}
+  .sb-m{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--t3);margin-top:2px}
+  .sb-a{padding:8px 12px;flex-shrink:0;display:flex;flex-direction:column;gap:4px}
+  .sb-b{display:flex;align-items:center;justify-content:center;padding:9px;border:1px dashed var(--border);border-radius:5px;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--t3);background:none}
+  .sb-b:hover{border-color:var(--cyan);color:var(--cyan)}.sb-b input{display:none}
+  .vp{flex:1;position:relative;background:var(--bg)}.vp canvas{width:100%;height:100%;display:block}
+  .info{position:absolute;top:10px;left:10px;font-family:'IBM Plex Mono',monospace;font-size:11px;background:rgba(8,8,15,.85);padding:6px 12px;border-radius:4px;border:1px solid var(--border);backdrop-filter:blur(8px);pointer-events:none}
+  .info .n{color:var(--cyan)}.info .s{color:var(--t3);margin:0 6px}
+  .drop{position:fixed;inset:0;background:rgba(45,154,170,.1);border:3px dashed var(--cyan);display:none;align-items:center;justify-content:center;font-size:18px;color:var(--cyan);font-weight:600;backdrop-filter:blur(4px);z-index:100;flex-direction:column;gap:8px}
+  .empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;pointer-events:none;z-index:5}
+  .empty .ic{font-size:48px;opacity:.25}.empty .lb{font-size:14px;color:var(--t2)}.empty .ht{font-size:11px;color:var(--t3);text-align:center;line-height:1.6}
+  .ctrl{display:flex;align-items:center;gap:10px;padding:8px 16px;border-top:1px solid var(--border);background:var(--panel);flex-shrink:0;font-family:'IBM Plex Mono',monospace;flex-wrap:wrap}
+  .cb{background:none;border:1px solid var(--border);border-radius:4px;color:var(--t2);padding:4px 10px;cursor:pointer;font-size:14px;font-family:inherit;min-width:36px;text-align:center}
+  .cb:hover{border-color:var(--cyan);color:var(--cyan)}
+  .tl{flex:1;display:flex;align-items:center;gap:8px;min-width:200px}
+  .tl .tm{font-size:10px;color:var(--t3);min-width:40px}
+  .tl input[type=range]{flex:1;accent-color:var(--cyan);cursor:pointer}
+  .sg{display:flex;align-items:center;gap:3px}
+  .sg .sl{font-size:9px;color:var(--t3);margin-right:4px;text-transform:uppercase;letter-spacing:1px}
+  .spb{background:none;border:1px solid var(--border);border-radius:3px;color:var(--t3);padding:2px 6px;cursor:pointer;font-size:10px;font-family:inherit}
+  .spb.act{background:var(--cyan);border-color:var(--cyan);color:#fff}
+  .tb{background:none;border:1px solid var(--border);border-radius:4px;color:var(--t3);padding:4px 8px;cursor:pointer;font-size:10px;font-family:inherit}
+  .tb.on{background:rgba(45,154,170,.15);border-color:var(--cyan);color:var(--cyan)}
+  .tb.on2{background:rgba(170,45,106,.15);border-color:var(--mag);color:var(--mag)}
+  .kb{position:absolute;bottom:8px;right:10px;font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--t3);pointer-events:none;display:flex;gap:10px}
+  .kb kbd{background:#10101f;border:1px solid var(--border);border-radius:2px;padding:1px 4px;font-family:inherit}
+  .toast{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-family:'IBM Plex Mono',monospace;font-size:13px;background:rgba(8,8,15,.95);padding:14px 24px;border-radius:6px;border:1px solid var(--cyan);color:var(--cyan);z-index:200;display:none;text-align:center}
+  .ms{padding:6px 14px;font-family:'IBM Plex Mono',monospace;font-size:10px;border-bottom:1px solid var(--border);flex-shrink:0}
+  .ms.ok{color:var(--grn)}.ms.no{color:var(--t3)}.ms.warn{color:#cc8833}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="hdr"><div class="hdr-l"><div class="logo">MV</div><span class="hdr-t">MOTION VIEWER</span></div><span class="hdr-i" id="hi">Drop robot folder (URDF + meshes) + .npz</span></div>
+  <div class="main">
+    <div class="sb">
+      <div class="ms no" id="ms">No robot — drop folder with URDF + STL</div>
+      <div class="sb-l">Motions</div>
+      <div class="sb-list" id="sl"></div>
+      <div class="sb-a">
+        <label class="sb-b"><input type="file" id="fi" multiple accept=".npz">+ Add .npz</label>
+        <label class="sb-b"><input type="file" id="fd" multiple accept=".npz" webkitdirectory>+ Add folder</label>
+      </div>
+    </div>
+    <div class="vp" id="vp">
+      <canvas id="cv"></canvas>
+      <div class="info" id="ov" style="display:none"></div>
+      <div class="empty" id="es"><div class="ic">🤖</div><div class="lb">Motion Viewer</div><div class="ht">Step 1: Drag robot folder containing <b>URDF + STL meshes</b><br>Step 2: Drag <b>.npz</b> motion files</div></div>
+      <div class="kb"><span><kbd>Space</kbd> play</span><span><kbd>←→</kbd> step</span><span><kbd>[]</kbd> switch</span></div>
+    </div>
+  </div>
+  <div class="ctrl" id="ctrlBar" style="display:none">
+    <button class="cb" id="bp">⏸</button>
+    <div class="tl"><span class="tm" id="t0">0:00.0</span><input type="range" id="sc" min="0" max="100" value="0"><span class="tm" id="t1">0:00.0</span></div>
+    <div class="sg"><span class="sl">Spd</span><button class="spb" data-s="0.25">.25</button><button class="spb" data-s="0.5">.5</button><button class="spb act" data-s="1">1x</button><button class="spb" data-s="2">2x</button></div>
+    <button class="tb on" id="bf">Follow</button>
+    <button class="tb" id="bt">Trail</button>
+  </div>
+</div>
+<div class="drop" id="dr"><span>Drop here</span><span style="font-size:12px;opacity:.7">Robot folder (URDF + meshes) or .npz files</span></div>
+<div class="toast" id="to"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+'use strict';
+
+var $=function(id){return document.getElementById(id);};
+
+// ── URDF Parser ──
+function parseURDF(xmlStr) {
+  var doc = new DOMParser().parseFromString(xmlStr, 'text/xml');
+  var robot = doc.querySelector('robot');
+  if (!robot) throw new Error('No <robot> element found');
+  var robotName = robot.getAttribute('name') || 'robot';
+
+  var links = {};
+  var linkOrder = [];
+  var topMaterials = {};
+  robot.querySelectorAll(':scope > material').forEach(function(el) {
+    var mName = el.getAttribute('name');
+    var col = el.querySelector('color');
+    if (mName && col) topMaterials[mName] = col.getAttribute('rgba');
+  });
+
+  robot.querySelectorAll(':scope > link').forEach(function(el) {
+    var name = el.getAttribute('name');
+    var meshes = [];
+    var rgba = null;
+    el.querySelectorAll('visual').forEach(function(vis) {
+      var m = vis.querySelector('geometry mesh');
+      if (m) {
+        var fn = m.getAttribute('filename') || '';
+        var base = fn.split('/').pop();
+        if (base) meshes.push(base);
+      }
+      if (!rgba) {
+        var mat = vis.querySelector('material');
+        if (mat) {
+          var col = mat.querySelector('color');
+          if (col) { rgba = col.getAttribute('rgba'); }
+          else if (mat.getAttribute('name') && topMaterials[mat.getAttribute('name')]) {
+            rgba = topMaterials[mat.getAttribute('name')];
+          }
+        }
+      }
+    });
+    links[name] = { name: name, meshes: meshes, rgba: rgba, children: [] };
+    linkOrder.push(name);
+  });
+
+  var joints = [];
+  var childSet = {};
+  robot.querySelectorAll(':scope > joint').forEach(function(el) {
+    var name = el.getAttribute('name');
+    var type = el.getAttribute('type') || 'fixed';
+    var parent = el.querySelector('parent');
+    var child = el.querySelector('child');
+    if (!parent || !child) return;
+    var pName = parent.getAttribute('link');
+    var cName = child.getAttribute('link');
+    var orig = el.querySelector('origin');
+    var xyz = [0,0,0], rpy = [0,0,0];
+    if (orig) {
+      var xs = orig.getAttribute('xyz');
+      var rs = orig.getAttribute('rpy');
+      if (xs) xyz = xs.trim().split(/\s+/).map(Number);
+      if (rs) rpy = rs.trim().split(/\s+/).map(Number);
+    }
+    var j = { name:name, type:type, parent:pName, child:cName, xyz:xyz, rpy:rpy };
+    joints.push(j);
+    childSet[cName] = true;
+    if (links[pName]) links[pName].children.push(j);
+  });
+
+  var root = null;
+  for (var i = 0; i < linkOrder.length; i++) {
+    if (!childSet[linkOrder[i]]) { root = linkOrder[i]; break; }
+  }
+  return { robotName:robotName, links:links, joints:joints, root:root };
+}
+
+// ── BFS Body Ordering (matches IsaacLab) ──
+function computeBodyOrder(urdf) {
+  var bodies = [];
+  if (!urdf.root) return bodies;
+
+  function collectFixedMeshes(linkName, parentXyz, parentRpy) {
+    var extras = [];
+    var link = urdf.links[linkName];
+    if (!link) return extras;
+    link.meshes.forEach(function(m) {
+      extras.push({ file: m, xyz: parentXyz, rpy: parentRpy, rgba: link.rgba });
+    });
+    link.children.forEach(function(j) {
+      if (j.type === 'fixed') {
+        var cx = [parentXyz[0]+j.xyz[0], parentXyz[1]+j.xyz[1], parentXyz[2]+j.xyz[2]];
+        var cr = [parentRpy[0]+j.rpy[0], parentRpy[1]+j.rpy[1], parentRpy[2]+j.rpy[2]];
+        extras = extras.concat(collectFixedMeshes(j.child, cx, cr));
+      }
+    });
+    return extras;
+  }
+
+  var queue = [urdf.root];
+  while (queue.length > 0) {
+    var linkName = queue.shift();
+    var link = urdf.links[linkName];
+    if (!link) continue;
+
+    var body = { name: linkName, meshes: [], fixedMeshes: [], rgba: link.rgba };
+    link.meshes.forEach(function(m) {
+      body.meshes.push(m);
+    });
+
+    link.children.forEach(function(j) {
+      if (j.type === 'fixed') {
+        body.fixedMeshes = body.fixedMeshes.concat(
+          collectFixedMeshes(j.child, j.xyz, j.rpy)
+        );
+      }
+    });
+
+    bodies.push(body);
+
+    link.children.forEach(function(j) {
+      if (j.type !== 'fixed') {
+        queue.push(j.child);
+      }
+    });
+  }
+  return bodies;
+}
+
+function rgbaToHex(rgbaStr) {
+  var parts = rgbaStr.trim().split(/\s+/).map(Number);
+  var r = Math.round(Math.min(1, Math.max(0, parts[0])) * 255);
+  var g = Math.round(Math.min(1, Math.max(0, parts[1])) * 255);
+  var b = Math.round(Math.min(1, Math.max(0, parts[2])) * 255);
+  return (r << 16) | (g << 8) | b;
+}
+
+function bodyColor(name, idx, total) {
+  var n = name.toLowerCase();
+  var isLeft = /_l_|_l$|left_|_left/.test(n) || /\bl\b/.test(n.replace(/_/g,' '));
+  var isRight = /_r_|_r$|right_|_right/.test(n) || /\br\b/.test(n.replace(/_/g,' '));
+  var isTorso = /base|pelvis|torso|waist|head|logo|imu|mid360/.test(n);
+  if (isTorso) return 0x8888aa;
+  if (isLeft) return 0x5599bb;
+  if (isRight) return 0xbb5577;
+  return idx % 2 === 0 ? 0x55bb88 : 0xbb9955;
+}
+
+function rpyToQuaternion(roll, pitch, yaw) {
+  var cr=Math.cos(roll/2), sr=Math.sin(roll/2);
+  var cp=Math.cos(pitch/2), sp=Math.sin(pitch/2);
+  var cy=Math.cos(yaw/2), sy=Math.sin(yaw/2);
+  return new THREE.Quaternion(
+    sr*cp*cy - cr*sp*sy,
+    cr*sp*cy + sr*cp*sy,
+    cr*cp*sy - sr*sp*cy,
+    cr*cp*cy + sr*sp*sy
+  );
+}
+
+// ── NPZ/NPY Parser ──
+function parseNPZ(ab) {
+  var b=new Uint8Array(ab),r={},o=0;
+  while(o+30<b.length){
+    if(b[o]!==80||b[o+1]!==75||b[o+2]!==3||b[o+3]!==4)break;
+    var cm=b[o+8]|(b[o+9]<<8);
+    var cs=b[o+18]|(b[o+19]<<8)|(b[o+20]<<16)|(b[o+21]<<24);
+    var fl=b[o+26]|(b[o+27]<<8),el=b[o+28]|(b[o+29]<<8);
+    var fn='';for(var c=0;c<fl;c++)fn+=String.fromCharCode(b[o+30+c]);
+    var ds=o+30+fl+el;
+    if(fn.indexOf('.npy')===fn.length-4&&cm===0&&cs>0){
+      var nc=new Uint8Array(cs);for(var j=0;j<cs;j++)nc[j]=b[ds+j];
+      try{r[fn.slice(0,-4)]=parseNPY(nc);}catch(e){}
+    }
+    o=ds+cs;
+  }
+  return r;
+}
+function parseNPY(b) {
+  if(b[0]!==147||b[1]!==78)throw 0;
+  var mj=b[6],hl,hs;
+  if(mj>=2){hl=b[8]|(b[9]<<8)|(b[10]<<16)|(b[11]<<24);hs=12;}
+  else{hl=b[8]|(b[9]<<8);hs=10;}
+  var h='';for(var i=hs;i<hs+hl;i++)h+=String.fromCharCode(b[i]);
+  var dm=h.match(/'descr'\s*:\s*'([^']+)'/),sm=h.match(/'shape'\s*:\s*\(([^)]*)\)/);
+  if(!dm||!sm)throw 0;
+  var d=dm[1],sh=[];
+  sm[1].split(',').forEach(function(s){s=s.trim();if(s)sh.push(parseInt(s));});
+  var doff=hs+hl,dl=b.length-doff,dc=new Uint8Array(dl);
+  for(var j=0;j<dl;j++)dc[j]=b[doff+j];
+  var ab=dc.buffer;
+  if(d.indexOf('f4')>=0)return{shape:sh,data:new Float32Array(ab)};
+  if(d.indexOf('i4')>=0)return{shape:sh,data:new Int32Array(ab)};
+  if(d.indexOf('f8')>=0)return{shape:sh,data:new Float64Array(ab)};
+  return{shape:sh,data:dc};
+}
+function extractMotion(a) {
+  var fps=a.fps?a.fps.data[0]:50;
+  var bp=a.body_pos_w,bq=a.body_quat_w;
+  return{fps:fps,nF:bp.shape[0],nB:bp.shape[1],pF:bp.data,qF:bq?bq.data:null};
+}
+
+// ── STL Parser ──
+function parseSTL(buf) {
+  var dv=new DataView(buf),nT=dv.getUint32(80,true);
+  var pos=new Float32Array(nT*9),off=84;
+  for(var t=0;t<nT;t++){
+    off+=12;
+    for(var v=0;v<3;v++){
+      var vi=t*9+v*3;
+      pos[vi]=dv.getFloat32(off,true);
+      pos[vi+1]=dv.getFloat32(off+4,true);
+      pos[vi+2]=dv.getFloat32(off+8,true);
+      off+=12;
+    }
+    off+=2;
+  }
+  var g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  g.computeVertexNormals();
+  return g;
+}
+
+// ── Three.js Scene ──
+var cv=$('cv'),vp=$('vp'),W=vp.clientWidth,H=vp.clientHeight;
+var rn=new THREE.WebGLRenderer({canvas:cv,antialias:true});
+rn.setSize(W,H);rn.setPixelRatio(Math.min(devicePixelRatio,2));
+rn.shadowMap.enabled=true;rn.shadowMap.type=THREE.PCFSoftShadowMap;
+rn.outputEncoding=THREE.sRGBEncoding;
+rn.toneMapping=THREE.ACESFilmicToneMapping;rn.toneMappingExposure=1.1;
+var scene=new THREE.Scene();
+scene.background=new THREE.Color(0x08080f);
+scene.fog=new THREE.FogExp2(0x08080f,0.06);
+var cam=new THREE.PerspectiveCamera(50,W/H,0.05,100);
+scene.add(new THREE.AmbientLight(0x8888cc,0.5));
+scene.add(new THREE.HemisphereLight(0x88aaff,0x443322,0.6));
+var dl=new THREE.DirectionalLight(0xffeedd,1.4);
+dl.position.set(3,5,4);dl.castShadow=true;
+dl.shadow.mapSize.set(1024,1024);
+dl.shadow.camera.near=.1;dl.shadow.camera.far=20;
+dl.shadow.camera.left=-4;dl.shadow.camera.right=4;
+dl.shadow.camera.top=4;dl.shadow.camera.bottom=-4;
+scene.add(dl);
+scene.add(new THREE.Mesh(
+  new THREE.PlaneGeometry(30,30),
+  new THREE.MeshStandardMaterial({color:0x10101f,roughness:.9,metalness:.1})
+).rotateX(-Math.PI/2));
+var grd=new THREE.GridHelper(30,60,0x222244,0x181830);
+grd.position.y=.001;scene.add(grd);
+
+// Dynamic body groups
+var LG = [];
+var bodyNames = [];
+var nBodies = 0;
+var meshLoaded = false;
+
+// Trail
+var trl=new THREE.Line(
+  new THREE.BufferGeometry(),
+  new THREE.LineBasicMaterial({color:0x4a6688,transparent:true,opacity:.5})
+);
+scene.add(trl);trl.visible=false;var tPts=[];
+
+// Z-up → Y-up: -90 deg around X
+var RF=new THREE.Quaternion(-0.7071067811865475,0,0,0.7071067811865476);
+var _tq=new THREE.Quaternion();
+
+function clearRobot() {
+  for (var i = 0; i < LG.length; i++) {
+    scene.remove(LG[i]);
+    LG[i].traverse(function(c) {
+      if (c.geometry) c.geometry.dispose();
+      if (c.material) c.material.dispose();
+    });
+  }
+  LG = [];
+  bodyNames = [];
+  nBodies = 0;
+  meshLoaded = false;
+}
+
+function loadRobot(urdfText, stlMap) {
+  clearRobot();
+  var urdf = parseURDF(urdfText);
+  var bodies = computeBodyOrder(urdf);
+  nBodies = bodies.length;
+
+  var stlKeys = Object.keys(stlMap);
+  console.log('Robot: ' + urdf.robotName + ', bodies: ' + nBodies + ', STL files available: ' + stlKeys.length);
+  console.log('STL map keys:', stlKeys.sort().join(', '));
+  bodies.forEach(function(b, i) {
+    var fm = b.fixedMeshes.map(function(f){return f.file;});
+    console.log('  [' + i + '] ' + b.name + ' meshes=' + JSON.stringify(b.meshes) + (fm.length ? ' fixed=' + JSON.stringify(fm) : ''));
+  });
+
+  var loaded = 0, missing = 0;
+  for (var i = 0; i < nBodies; i++) {
+    var body = bodies[i];
+    var grp = new THREE.Group();
+    grp.visible = true;
+    bodyNames.push(body.name);
+
+    var col = body.rgba ? rgbaToHex(body.rgba) : bodyColor(body.name, i, nBodies);
+    var mat = new THREE.MeshStandardMaterial({color:col,roughness:.45,metalness:.3});
+
+    body.meshes.forEach(function(mf) {
+      var buf = stlMap[mf.toLowerCase()];
+      if (!buf) { console.warn('Missing body mesh: ' + mf + ' (key: ' + mf.toLowerCase() + ')'); missing++; return; }
+      try {
+        var geo = parseSTL(buf);
+        var mesh = new THREE.Mesh(geo, mat);
+        mesh.castShadow = true; mesh.receiveShadow = true;
+        grp.add(mesh);
+        loaded++;
+      } catch(e) { console.error('STL parse error: ' + mf, e); }
+    });
+
+    body.fixedMeshes.forEach(function(fm) {
+      var buf = stlMap[fm.file.toLowerCase()];
+      if (!buf) { console.warn('Missing fixed mesh: ' + fm.file + ' for body ' + body.name + ' (key: ' + fm.file.toLowerCase() + ')'); missing++; return; }
+      try {
+        var geo = parseSTL(buf);
+        var ox = fm.xyz[0], oy = fm.xyz[1], oz = fm.xyz[2];
+        var hasRpy = fm.rpy[0] || fm.rpy[1] || fm.rpy[2];
+        if (ox || oy || oz || hasRpy) {
+          var pos = geo.attributes.position;
+          var q = hasRpy ? rpyToQuaternion(fm.rpy[0], fm.rpy[1], fm.rpy[2]) : null;
+          var v = new THREE.Vector3();
+          for (var vi = 0; vi < pos.count; vi++) {
+            v.set(pos.getX(vi), pos.getY(vi), pos.getZ(vi));
+            if (q) v.applyQuaternion(q);
+            v.x += ox; v.y += oy; v.z += oz;
+            pos.setXYZ(vi, v.x, v.y, v.z);
+          }
+          pos.needsUpdate = true;
+          geo.computeVertexNormals();
+        }
+        var fmCol = fm.rgba ? rgbaToHex(fm.rgba) : col;
+        var mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({color:fmCol,roughness:.45,metalness:.3}));
+        mesh.castShadow = true; mesh.receiveShadow = true;
+        grp.add(mesh);
+        loaded++;
+        console.log('  Fixed mesh loaded: ' + fm.file + ' -> body ' + body.name + ' offset=(' + fm.xyz.join(',') + ')');
+      } catch(e) { console.error('Fixed mesh error: ' + fm.file, e); }
+    });
+
+    scene.add(grp);
+    LG.push(grp);
+  }
+
+  meshLoaded = true;
+  var statusText = urdf.robotName + ' loaded (' + loaded + ' meshes, ' + nBodies + ' bodies)';
+  if (missing) statusText += ' — ' + missing + ' missing';
+  $('ms').textContent = statusText;
+  $('ms').className = missing ? 'ms warn' : 'ms ok';
+  console.log(statusText);
+  $('hi').textContent = urdf.robotName + ' | ' + nBodies + ' bodies';
+  return nBodies;
+}
+
+function updatePose(mot, fr) {
+  var nb = mot.nB, pf = mot.pF, qf = mot.qF;
+  var count = Math.min(LG.length, nb);
+  for (var i = 0; i < count; i++) {
+    var g = LG[i];
+    var pb = (fr * nb + i) * 3;
+    g.position.set(pf[pb], pf[pb+2], -pf[pb+1]);
+    if (qf) {
+      var qb = (fr * nb + i) * 4;
+      _tq.set(qf[qb+1], qf[qb+2], qf[qb+3], qf[qb]);
+      g.quaternion.multiplyQuaternions(RF, _tq);
+    }
+  }
+}
+
+// ── Orbit Camera ──
+var orb={th:Math.PI/4,ph:Math.PI/3,r:3},cTgt=new THREE.Vector3(0,.8,0);
+function uCam(){
+  cam.position.set(
+    cTgt.x+orb.r*Math.sin(orb.ph)*Math.cos(orb.th),
+    cTgt.y+orb.r*Math.cos(orb.ph),
+    cTgt.z+orb.r*Math.sin(orb.ph)*Math.sin(orb.th)
+  );
+  cam.lookAt(cTgt);
+}
+uCam();
+var drg=0,mx=0,my=0; // drg: 0=none, 1=rotate, 2=pan
+cv.addEventListener('mousedown',function(e){
+  mx=e.clientX;my=e.clientY;
+  if(e.button===0) drg=1;
+  else if(e.button===1||e.button===2) drg=2;
+});
+cv.addEventListener('contextmenu',function(e){e.preventDefault();});
+window.addEventListener('mousemove',function(e){
+  if(!drg)return;
+  var dx=e.clientX-mx,dy=e.clientY-my;
+  mx=e.clientX;my=e.clientY;
+  if(drg===1){
+    orb.th-=dx*.008;
+    orb.ph=Math.max(.15,Math.min(Math.PI-.15,orb.ph+dy*.008));
+  } else if(drg===2){
+    var right=new THREE.Vector3();
+    var up=new THREE.Vector3();
+    cam.getWorldDirection(up);
+    right.crossVectors(up,cam.up).normalize();
+    up.crossVectors(right,up).normalize();
+    var scale=orb.r*.001;
+    cTgt.addScaledVector(right,-dx*scale);
+    cTgt.addScaledVector(up,dy*scale);
+  }
+  uCam();
+});
+window.addEventListener('mouseup',function(){drg=0;});
+cv.addEventListener('wheel',function(e){e.preventDefault();orb.r=Math.max(.8,Math.min(12,orb.r+e.deltaY*.003));uCam();},{passive:false});
+var tch0=null;
+cv.addEventListener('touchstart',function(e){
+  if(e.touches.length===1){drg=1;mx=e.touches[0].clientX;my=e.touches[0].clientY;}
+  else if(e.touches.length===2){drg=2;mx=(e.touches[0].clientX+e.touches[1].clientX)/2;my=(e.touches[0].clientY+e.touches[1].clientY)/2;tch0=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);}
+},{passive:true});
+cv.addEventListener('touchmove',function(e){
+  if(!drg||!e.touches.length)return;
+  if(drg===1&&e.touches.length===1){
+    var t=e.touches[0];var dx=t.clientX-mx,dy=t.clientY-my;
+    mx=t.clientX;my=t.clientY;
+    orb.th-=dx*.008;orb.ph=Math.max(.15,Math.min(Math.PI-.15,orb.ph+dy*.008));
+  } else if(drg===2&&e.touches.length===2){
+    var cx=(e.touches[0].clientX+e.touches[1].clientX)/2;
+    var cy=(e.touches[0].clientY+e.touches[1].clientY)/2;
+    var dx=cx-mx,dy=cy-my;mx=cx;my=cy;
+    var right=new THREE.Vector3(),up=new THREE.Vector3();
+    cam.getWorldDirection(up);right.crossVectors(up,cam.up).normalize();up.crossVectors(right,up).normalize();
+    var scale=orb.r*.001;cTgt.addScaledVector(right,-dx*scale);cTgt.addScaledVector(up,dy*scale);
+    if(tch0){var d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);orb.r=Math.max(.8,Math.min(12,orb.r*(tch0/d)));tch0=d;}
+  }
+  uCam();
+},{passive:true});
+cv.addEventListener('touchend',function(e){if(e.touches.length<2){drg=0;tch0=null;}});
+window.addEventListener('resize',function(){W=vp.clientWidth;H=vp.clientHeight;cam.aspect=W/H;cam.updateProjectionMatrix();rn.setSize(W,H);});
+
+// ── State ──
+var mots=[],aIdx=0,cFr=0,play=true,spd=1,fCam=true,sTrl=false;
+function fmt(f,fps){var s=f/fps,m=Math.floor(s/60);return m+':'+(s%60).toFixed(1).padStart(4,'0');}
+function rSb(){
+  var el=$('sl');el.innerHTML='';
+  for(var i=0;i<mots.length;i++){
+    var m=mots[i],d=document.createElement('div');
+    d.className='sb-i'+(i===aIdx?' act':'');
+    d.innerHTML='<div class="sb-n" title="'+m.name+'">'+m.name+'</div><div class="sb-m">'+m.d.nF+'f\u00b7'+m.d.fps+'fps\u00b7'+(m.d.nF/m.d.fps).toFixed(1)+'s</div>';
+    d.setAttribute('data-i',i);
+    d.onclick=function(){aIdx=parseInt(this.getAttribute('data-i'));cFr=0;tPts=[];rSb();uUI();};
+    el.appendChild(d);
+  }
+  var hiText = mots.length ? mots.length+' motion'+(mots.length>1?'s':'') : '';
+  if (meshLoaded && bodyNames.length) hiText = $('hi').textContent.split('|')[0].trim() + (hiText ? ' | ' + hiText : '');
+  else if (hiText) $('hi').textContent = hiText + ' loaded';
+}
+function uUI(){
+  var m=mots[aIdx]?mots[aIdx].d:null;
+  if(!m){$('ctrlBar').style.display='none';$('ov').style.display='none';$('es').style.display='flex';return;}
+  $('es').style.display='none';$('ctrlBar').style.display='flex';$('ov').style.display='block';
+  $('sc').max=m.nF-1;$('sc').value=cFr;
+  $('t0').textContent=fmt(cFr,m.fps);$('t1').textContent=fmt(m.nF-1,m.fps);
+  $('bp').textContent=play?'\u23f8':'\u25b6';
+  $('ov').innerHTML='<span class="n">'+mots[aIdx].name+'</span><span class="s">|</span>'+fmt(cFr,m.fps)+'<span class="s">|</span>f'+cFr+'/'+(m.nF-1);
+  if (meshLoaded && m.nB !== nBodies) {
+    $('ms').textContent = '\u26a0 URDF/NPZ mismatch: NPZ=' + m.nB + ' bodies, URDF=' + nBodies + ' bodies. Use a matching URDF.';
+    $('ms').className = 'ms warn';
+  }
+}
+
+// ── NPZ loading ──
+function loadNPZ(files){
+  var nf=[];
+  for(var i=0;i<files.length;i++)
+    if(files[i].name.toLowerCase().endsWith('.npz'))nf.push(files[i]);
+  if(!nf.length)return;
+  nf.sort(function(a,b){return a.name.localeCompare(b.name);});
+  var to=$('to');to.style.display='block';
+  var fn=mots.length,ix=0;
+  function nx(){
+    if(ix>=nf.length){
+      to.style.display='none';
+      if(mots.length){aIdx=fn;cFr=0;tPts=[];rSb();uUI();}
+      return;
+    }
+    var f=nf[ix];
+    to.textContent='Loading '+(ix+1)+'/'+nf.length+': '+f.name;
+    ix++;
+    var rd=new FileReader();
+    rd.onload=function(ev){
+      try{
+        var a=parseNPZ(ev.target.result);
+        if(a.body_pos_w){
+          var d=extractMotion(a);
+          mots.push({name:f.name.replace('.npz',''),d:d});
+        }
+      }catch(e){console.error(f.name,e);}
+      setTimeout(nx,5);
+    };
+    rd.onerror=function(){setTimeout(nx,5);};
+    rd.readAsArrayBuffer(f);
+  }
+  nx();
+}
+
+// ── Drag & Drop ──
+var dc=0;
+document.body.addEventListener('dragenter',function(e){e.preventDefault();dc++;$('dr').style.display='flex';});
+document.body.addEventListener('dragover',function(e){e.preventDefault();});
+document.body.addEventListener('dragleave',function(e){dc--;if(dc<=0){dc=0;$('dr').style.display='none';}});
+document.body.addEventListener('drop',function(e){
+  e.preventDefault();dc=0;$('dr').style.display='none';
+  var it=e.dataTransfer.items;
+  if(it&&it.length&&it[0].webkitGetAsEntry){
+    var ent=[];for(var i=0;i<it.length;i++){var en=it[i].webkitGetAsEntry();if(en)ent.push(en);}
+    procEntries(ent);
+  } else {
+    procFileList(e.dataTransfer.files);
+  }
+});
+
+function procEntries(entries) {
+  var stl={}, npz=[], urdfText=null, pend=0, finished=false;
+  var to=$('to');to.style.display='block';to.textContent='Scanning...';
+
+  function done(){
+    if(pend>0||finished)return;
+    finished=true;
+    to.style.display='none';
+    if(urdfText && Object.keys(stl).length) {
+      try { loadRobot(urdfText, stl); } catch(e) { console.error('URDF load error:', e); $('ms').textContent='URDF error: '+e.message;$('ms').className='ms warn'; }
+    }
+    if(npz.length) loadNPZ(npz);
+  }
+
+  function readEntry(en) {
+    if (en.isFile) {
+      pend++;
+      en.file(function(f) {
+        var lo = f.name.toLowerCase();
+        if (lo.endsWith('.stl')) {
+          var r = new FileReader();
+          r.onload = function(ev) { stl[lo] = ev.target.result; pend--; done(); };
+          r.onerror = function() { pend--; done(); };
+          r.readAsArrayBuffer(f);
+        } else if (lo.endsWith('.urdf')) {
+          var r2 = new FileReader();
+          r2.onload = function(ev) { urdfText = ev.target.result; pend--; done(); };
+          r2.onerror = function() { pend--; done(); };
+          r2.readAsText(f);
+        } else if (lo.endsWith('.npz')) {
+          npz.push(f); pend--; done();
+        } else {
+          pend--; done();
+        }
+      }, function() { pend--; done(); });
+    } else if (en.isDirectory) {
+      pend++;
+      var dr = en.createReader(), all = [];
+      function ra() {
+        dr.readEntries(function(res) {
+          if (res.length) { all = all.concat(Array.from(res)); ra(); }
+          else { for (var i = 0; i < all.length; i++) readEntry(all[i]); pend--; done(); }
+        }, function() { pend--; done(); });
+      }
+      ra();
+    }
+  }
+  for (var i = 0; i < entries.length; i++) readEntry(entries[i]);
+  setTimeout(done, 100);
+}
+
+function procFileList(files) {
+  var stl={}, npzF=[], stlF=[], urdfFile=null;
+  for(var i=0;i<files.length;i++){
+    var lo=files[i].name.toLowerCase();
+    if(lo.endsWith('.stl')) stlF.push(files[i]);
+    else if(lo.endsWith('.urdf')) urdfFile=files[i];
+    else if(lo.endsWith('.npz')) npzF.push(files[i]);
+  }
+  if (urdfFile && stlF.length) {
+    var ld=0, urdfText=null;
+    var r0=new FileReader();
+    r0.onload=function(ev){
+      urdfText=ev.target.result;
+      if(ld===stlF.length) finalize();
+    };
+    r0.readAsText(urdfFile);
+    for(var s=0;s<stlF.length;s++){
+      (function(f){
+        var r=new FileReader();
+        r.onload=function(ev){stl[f.name.toLowerCase()]=ev.target.result;ld++;if(ld===stlF.length && urdfText) finalize();};
+        r.readAsArrayBuffer(f);
+      })(stlF[s]);
+    }
+    function finalize(){
+      try { loadRobot(urdfText, stl); } catch(e) { console.error(e); }
+      if(npzF.length) loadNPZ(npzF);
+    }
+  } else if(npzF.length) {
+    loadNPZ(npzF);
+  }
+}
+
+$('fi').addEventListener('change',function(e){loadNPZ(e.target.files);e.target.value='';});
+$('fd').addEventListener('change',function(e){loadNPZ(e.target.files);e.target.value='';});
+
+// ── Controls ──
+$('bp').onclick=function(){play=!play;uUI();};
+$('sc').addEventListener('input',function(){cFr=parseInt(this.value);play=false;uUI();});
+var sbs=document.querySelectorAll('.spb');
+for(var i=0;i<sbs.length;i++) sbs[i].onclick=function(){
+  spd=parseFloat(this.getAttribute('data-s'));
+  for(var j=0;j<sbs.length;j++)sbs[j].classList.remove('act');
+  this.classList.add('act');
+};
+$('bf').onclick=function(){fCam=!fCam;this.classList.toggle('on',fCam);};
+$('bt').onclick=function(){sTrl=!sTrl;this.classList.toggle('on2',sTrl);if(!sTrl){tPts=[];trl.visible=false;}};
+window.addEventListener('keydown',function(e){
+  if(!mots.length)return;
+  var m=mots[aIdx]?mots[aIdx].d:null;if(!m)return;
+  if(e.code==='Space'){e.preventDefault();play=!play;uUI();}
+  else if(e.code==='ArrowRight'){e.preventDefault();cFr=Math.min(cFr+1,m.nF-1);play=false;uUI();}
+  else if(e.code==='ArrowLeft'){e.preventDefault();cFr=Math.max(cFr-1,0);play=false;uUI();}
+  else if(e.code==='BracketRight'){e.preventDefault();aIdx=(aIdx+1)%mots.length;cFr=0;tPts=[];rSb();uUI();}
+  else if(e.code==='BracketLeft'){e.preventDefault();aIdx=(aIdx-1+mots.length)%mots.length;cFr=0;tPts=[];rSb();uUI();}
+});
+
+// ── Render Loop ──
+var lt=0,acc=0;
+function tick(ts){
+  requestAnimationFrame(tick);
+  var dt=lt?(ts-lt)/1000:0;lt=ts;
+  var mot=mots[aIdx]?mots[aIdx].d:null;
+  if(mot&&meshLoaded){
+    if(play){
+      acc+=dt*spd;var fd=1/mot.fps;
+      while(acc>=fd){acc-=fd;cFr=(cFr+1)%mot.nF;}
+      $('sc').value=cFr;$('t0').textContent=fmt(cFr,mot.fps);
+      $('ov').innerHTML='<span class="n">'+mots[aIdx].name+'</span><span class="s">|</span>'+fmt(cFr,mot.fps)+'<span class="s">|</span>f'+cFr+'/'+(mot.nF-1);
+    }
+    updatePose(mot,cFr);
+    if(fCam && LG.length){cTgt.lerp(LG[0].position,.05);uCam();}
+    dl.position.set(cTgt.x+3,cTgt.y+5,cTgt.z+4);
+    dl.target.position.copy(cTgt);dl.target.updateMatrixWorld();
+    if(sTrl && LG.length){
+      var p=LG[0].position;
+      tPts.push(p.x,.01,p.z);
+      if(tPts.length>6000)tPts=tPts.slice(-6000);
+      var tg=new THREE.BufferGeometry();
+      tg.setAttribute('position',new THREE.BufferAttribute(new Float32Array(tPts),3));
+      trl.geometry.dispose();trl.geometry=tg;trl.visible=true;
+    }
+  }
+  rn.render(scene,cam);
+}
+requestAnimationFrame(tick);
+rn.render(scene,cam);
+console.log('Motion Viewer ready.');
+})();
+</script>
+</body>
+</html>
